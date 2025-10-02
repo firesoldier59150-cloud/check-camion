@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Contrôle journalier des camions Abeille rush DNC2</title>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <style>
+    body{font-family:Arial, sans-serif;margin:0;padding:20px;background:#f7f7f8}
+    .container{max-width:900px;margin:20px auto;background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,0.08)}
+    h1{font-size:24px;margin:0 0 20px}
+    h2{margin-top:0;font-size:20px;color:#333}
+    form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    @media (max-width:600px){
+      form{grid-template-columns:1fr}
+    }
+    label{display:block;font-size:13px;margin-bottom:6px}
+    input[type=text], input[type=number], input[type=date], textarea, select{
+      width:100%;padding:8px;border-radius:8px;border:1px solid #ddd
+    }
+    textarea{min-height:70px}
+    .full{grid-column:1/-1}
+    .btn{background:#1f7adb;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;margin-top:5px;text-decoration:none;display:inline-block}
+    .success{background:#e6ffef;border-left:4px solid #2e7d32;padding:10px;border-radius:6px;margin-top:12px}
+    .error{background:#ffe6e6;border-left:4px solid #a94442;padding:10px;border-radius:6px;margin-top:12px;color:#a94442}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Contrôle journalier camion</h1>
+    <form id="truckForm">
+      <div><label for="date">Date</label><input id="date" name="date" type="date" required></div>
+      <div>
+        <label for="chauffeur">Chauffeur</label>
+        <select id="chauffeur" name="chauffeur" required></select>
+      </div>
+      <div>
+        <label for="camion">Immatriculation du camion</label>
+        <select id="camion" name="camion" required></select>
+      </div>
+      <div><label for="pneus">Pneus</label>
+        <select id="pneus" name="pneus">
+          <option value="">--</option>
+          <option value="OK">OK</option>
+          <option value="A vérifier">À vérifier</option>
+        </select>
+      </div>
+      <div><label for="freins">Freins</label>
+        <select id="freins" name="freins">
+          <option value="">--</option>
+          <option value="OK">OK</option>
+          <option value="A vérifier">À vérifier</option>
+        </select>
+      </div>
+      <div><label for="eclairage">Éclairage</label>
+        <select id="eclairage" name="eclairage">
+          <option value="">--</option>
+          <option value="OK">OK</option>
+          <option value="Défaut">Défaut</option>
+        </select>
+      </div>
+      <div class="full"><label for="observations">Observations</label><textarea id="observations" name="observations"></textarea></div>
+      <div><label for="parking">Nom du parking</label><input id="parking" name="parking" type="text"></div>
+      <div class="full">
+        <button class="btn" type="submit">Envoyer par Email</button>
+        <a id="sendWhatsapp" target="_blank" class="btn" style="display:none; margin-left:10px;">📤 Envoyer sur WhatsApp</a>
+        <div id="message"></div>
+      </div>
+    </form>
+  </div>
+
+  <div class="container">
+    <h2>⚙️ Administration</h2>
+
+    <h3>Chauffeurs</h3>
+    <input type="text" id="newChauffeur" placeholder="Nom du chauffeur">
+    <button class="btn" onclick="ajouterChauffeur()">Ajouter chauffeur</button>
+    <button class="btn" onclick="retirerChauffeur()">Retirer chauffeur sélectionné</button>
+
+    <h3>Camions</h3>
+    <input type="text" id="newCamion" placeholder="Immatriculation du camion">
+    <button class="btn" onclick="ajouterCamion()">Ajouter camion</button>
+    <button class="btn" onclick="retirerCamion()">Retirer camion sélectionné</button>
+  </div>
+
+  <script>
+    (function(){ 
+      emailjs.init("PUeqLFzf8DVPsfpds"); // clé publique
+    })();
+
+    const form=document.getElementById('truckForm');
+    const msg=document.getElementById('message');
+
+    let chauffeurs = JSON.parse(localStorage.getItem("chauffeurs")) || ["Théo Wasuita", "Frederick Hoffman"];
+    let camions = JSON.parse(localStorage.getItem("camions")) || ["HA-510-AS", "HA-518-AW", "HA-256-KQ"];
+
+    function remplirSelect(id, options) {
+      const select = document.getElementById(id);
+      select.innerHTML = '<option value="">-- Sélectionner --</option>';
+      options.forEach(opt => {
+        const o = document.createElement("option");
+        o.value = opt;
+        o.textContent = opt;
+        select.appendChild(o);
+      });
+    }
+
+    function sauvegarder() {
+      localStorage.setItem("chauffeurs", JSON.stringify(chauffeurs));
+      localStorage.setItem("camions", JSON.stringify(camions));
+    }
+
+    function ajouterChauffeur() {
+      const nom = document.getElementById("newChauffeur").value.trim();
+      if(nom && !chauffeurs.includes(nom)) {
+        chauffeurs.push(nom);
+        remplirSelect("chauffeur", chauffeurs);
+        document.getElementById("newChauffeur").value = "";
+        sauvegarder();
+      }
+    }
+
+    function retirerChauffeur() {
+      const select = document.getElementById("chauffeur");
+      const value = select.value;
+      if(value && chauffeurs.includes(value)) {
+        chauffeurs = chauffeurs.filter(ch => ch !== value);
+        remplirSelect("chauffeur", chauffeurs);
+        sauvegarder();
+      }
+    }
+
+    function ajouterCamion() {
+      const immat = document.getElementById("newCamion").value.trim();
+      if(immat && !camions.includes(immat)) {
+        camions.push(immat);
+        remplirSelect("camion", camions);
+        document.getElementById("newCamion").value = "";
+        sauvegarder();
+      }
+    }
+
+    function retirerCamion() {
+      const select = document.getElementById("camion");
+      const value = select.value;
+      if(value && camions.includes(value)) {
+        camions = camions.filter(c => c !== value);
+        remplirSelect("camion", camions);
+        sauvegarder();
+      }
+    }
+
+    window.onload = function() {
+      remplirSelect("chauffeur", chauffeurs);
+      remplirSelect("camion", camions);
+    };
+
+    form.addEventListener('submit',function(e){
+      e.preventDefault();
+
+      const rapport = 
+        "🚛 Rapport camion\n" +
+        "Date: " + form.date.value + "\n" +
+        "Chauffeur: " + form.chauffeur.value + "\n" +
+        "Camion: " + form.camion.value + "\n" +
+        "Pneus: " + form.pneus.value + "\n" +
+        "Freins: " + form.freins.value + "\n" +
+        "Éclairage: " + form.eclairage.value + "\n" +
+        "Observations: " + form.observations.value + "\n" +
+        "Parking: " + form.parking.value;
+
+      // Lien WhatsApp
+      const whatsappLink = "https://wa.me/?text=" + encodeURIComponent(rapport);
+      const whatsappBtn = document.getElementById("sendWhatsapp");
+      whatsappBtn.href = whatsappLink;
+      whatsappBtn.style.display = "inline-block";
+
+      // Envoi EmailJS
+      const formData = {
+        date: form.date.value,
+        chauffeur: form.chauffeur.value,
+        camion: form.camion.value,
+        pneus: form.pneus.value,
+        freins: form.freins.value,
+        eclairage: form.eclairage.value,
+        observations: form.observations.value,
+        parking: form.parking.value,
+        subject: "Rapport camion " + form.camion.value
+      };
+
+      emailjs.send("service_wj64ytl","template_vfr9qvw", formData)
+      .then(function(response){
+        console.log("EmailJS SUCCESS:", response);
+        msg.innerHTML='<div class="success">Formulaire envoyé par email ✅ Vous pouvez aussi l’envoyer sur WhatsApp.</div>';
+        form.reset();
+      }, function(error){
+        console.error("EmailJS ERROR:", error);
+        msg.innerHTML='<div class="error">Erreur EmailJS : '+JSON.stringify(error)+'</div>';
+      });
+    });
+  </script>
+</body>
+</html>
